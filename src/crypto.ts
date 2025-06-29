@@ -55,10 +55,15 @@ export async function verifySignature(
     throw new Error(`Unsupported public key type: "${publicKeyString}". Must start with "${ED25519_PREFIX}".`);
   }
 
+  const publicKeyPart = publicKeyString.split(":")[1];
+  if (!publicKeyPart) {
+    throw new Error(`Invalid public key format: ${publicKeyString}`);
+  }
+  
   const isValid = ed25519.verify(
     signatureBytes,
     payloadHash,
-    base58.decode(publicKeyString.split(":")[1]),
+    base58.decode(publicKeyPart),
   );
   
   if (!isValid) {
@@ -82,7 +87,7 @@ export async function verifyPublicKeyOwner(
       throw new Error("API error or unexpected response");
     }
     
-    const data = await response.json();
+    const data = await response.json() as { account_ids?: string[] };
     if (!data || !Array.isArray(data.account_ids) || !data.account_ids.includes(accountId)) {
       throw new Error("public key not associated with the account or does not meet access key requirements");
     }

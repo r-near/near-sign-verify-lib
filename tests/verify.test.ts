@@ -1,4 +1,4 @@
-import { describe, it, expect, spyOn, afterEach, beforeEach } from "bun:test";
+import { describe, it, expect, spyOn, afterEach, beforeEach, mock } from "bun:test";
 import { verify } from "../src/verify.ts";
 import { createAuthToken } from "../src/utils.ts";
 import * as cryptoModule from "../src/crypto.ts";
@@ -6,7 +6,7 @@ import * as authModule from "../src/utils.ts";
 import type { NearAuthData } from "../src/types.ts";
 
 // Mock dependencies
-global.fetch = spyOn(global, "fetch");
+const fetchMock = spyOn(global, "fetch") as any;
 
 describe("verify", () => {
   const testNonce = new Uint8Array(32);
@@ -29,16 +29,16 @@ describe("verify", () => {
   });
 
   afterEach(() => {
-    (global.fetch as any).mockClear();
+    fetchMock.mockClear();
   });
 
   describe("basic verification", () => {
     it("should validate a valid signature", async () => {
       // Mock successful responses
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
       const nonceSpy = spyOn(authModule, "validateNonce").mockImplementation(() => {});
@@ -67,7 +67,7 @@ describe("verify", () => {
       };
       const mainnetToken = createAuthToken(mainnetAuthData);
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [mainnetAuthData.accountId] }),
       });
@@ -87,10 +87,10 @@ describe("verify", () => {
     });
 
     it("should use /all endpoint when requireFullAccessKey is false", async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
       const nonceSpy = spyOn(authModule, "validateNonce").mockImplementation(() => {});
@@ -115,10 +115,10 @@ describe("verify", () => {
 
   describe("validation options", () => {
     it("should validate recipient match", async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
       const nonceSpy = spyOn(authModule, "validateNonce").mockImplementation(() => {});
@@ -142,10 +142,10 @@ describe("verify", () => {
     });
 
     it("should validate message match", async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
       const nonceSpy = spyOn(authModule, "validateNonce").mockImplementation(() => {});
@@ -169,10 +169,10 @@ describe("verify", () => {
     });
 
     it("should validate state match", async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
       const nonceSpy = spyOn(authModule, "validateNonce").mockImplementation(() => {});
@@ -210,10 +210,10 @@ describe("verify", () => {
     });
 
     it("should pass custom nonce maxAge to validateNonce", async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
       const nonceSpy = spyOn(authModule, "validateNonce").mockImplementation(() => {});
@@ -230,12 +230,12 @@ describe("verify", () => {
 
   describe("custom validators", () => {
     it("should use custom nonce validator", async () => {
-      const customValidateNonce = spyOn((nonce: Uint8Array) => true);
+      const customValidateNonce = mock((nonce: Uint8Array) => true);
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
 
@@ -250,7 +250,7 @@ describe("verify", () => {
     });
 
     it("should reject when custom nonce validator returns false", async () => {
-      const customValidateNonce = spyOn(() => false);
+      const customValidateNonce = mock(() => false);
 
       await expect(
         verify(authTokenString, {
@@ -262,12 +262,12 @@ describe("verify", () => {
     });
 
     it("should use custom recipient validator", async () => {
-      const customValidateRecipient = spyOn((recipient: string) => true);
+      const customValidateRecipient = mock((recipient: string) => true);
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
       const nonceSpy = spyOn(authModule, "validateNonce").mockImplementation(() => {});
@@ -284,7 +284,7 @@ describe("verify", () => {
     });
 
     it("should reject when custom recipient validator returns false", async () => {
-      const customValidateRecipient = spyOn(() => false);
+      const customValidateRecipient = mock(() => false);
 
       await expect(
         verify(authTokenString, {
@@ -296,12 +296,12 @@ describe("verify", () => {
     });
 
     it("should use custom message validator", async () => {
-      const customValidateMessage = spyOn((message: string) => true);
+      const customValidateMessage = mock((message: string) => true);
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
       const nonceSpy = spyOn(authModule, "validateNonce").mockImplementation(() => {});
@@ -318,7 +318,7 @@ describe("verify", () => {
     });
 
     it("should reject when custom message validator returns false", async () => {
-      const customValidateMessage = spyOn(() => false);
+      const customValidateMessage = mock(() => false);
 
       await expect(
         verify(authTokenString, {
@@ -330,12 +330,12 @@ describe("verify", () => {
     });
 
     it("should use custom state validator", async () => {
-      const customValidateState = spyOn((state?: string) => true);
+      const customValidateState = mock((state?: string) => true);
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockResolvedValue(undefined);
       const nonceSpy = spyOn(authModule, "validateNonce").mockImplementation(() => {});
@@ -352,7 +352,7 @@ describe("verify", () => {
     });
 
     it("should reject when custom state validator returns false", async () => {
-      const customValidateState = spyOn(() => false);
+      const customValidateState = mock(() => false);
 
       await expect(
         verify(authTokenString, {
@@ -366,7 +366,7 @@ describe("verify", () => {
 
   describe("error handling", () => {
     it("should reject if public key ownership verification fails", async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: ["different.testnet"] }),
       });
@@ -395,10 +395,10 @@ describe("verify", () => {
     });
 
     it("should reject if cryptographic signature verification fails", async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ account_ids: [baseAuthData.accountId] }),
-      });
+      } as any);
       
       const verifySpy = spyOn(cryptoModule, "verifySignature").mockRejectedValue(
         new Error("Signature verification failed")

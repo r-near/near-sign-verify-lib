@@ -7,7 +7,7 @@ export interface NearAuthData {
     nonce: number[];
     recipient: string;
     callbackUrl: string | null;
-    state?: string | null;
+    state: string | null;
   }
   
   export interface SignedPayload {

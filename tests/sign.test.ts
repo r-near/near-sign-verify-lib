@@ -1,6 +1,6 @@
-import { describe, it, expect, spyOn } from "bun:test";
+import { describe, it, expect, spyOn, mock } from "bun:test";
 import { sign } from "../src/sign.js";
-import { parseAuthToken } from "../src/auth.js";
+import { parseAuthToken } from "../src/utils.js";
 import type { WalletInterface, SignOptions } from "../src/types.js";
 
 describe("sign", () => {
@@ -52,7 +52,7 @@ describe("sign", () => {
   describe("wallet signing", () => {
     it("should handle wallet signing errors", async () => {
       const mockWallet: WalletInterface = {
-        signMessage: spyOn(async () => {
+        signMessage: mock(async () => {
           throw new Error("Wallet signing failed");
         }),
       };
@@ -74,7 +74,7 @@ describe("sign", () => {
       const base58Signature = base58.encode(rawSignature);
       
       const mockWallet: WalletInterface = {
-        signMessage: spyOn(async () => ({
+        signMessage: mock(async () => ({
           signature: `ed25519:${base58Signature}`,
           publicKey: "ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T",
           accountId: "wallet-provided.near",
@@ -98,7 +98,7 @@ describe("sign", () => {
 
     it("should handle unsupported signature format from wallet", async () => {
       const mockWallet: WalletInterface = {
-        signMessage: spyOn(async () => ({
+        signMessage: mock(async () => ({
           signature: "rsa:someinvalidsignature",
           publicKey: "ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T",
           accountId: "test.near",
@@ -119,7 +119,7 @@ describe("sign", () => {
       const base58Signature = base58.encode(rawSignature);
       
       const mockWallet: WalletInterface = {
-        signMessage: spyOn(async () => ({
+        signMessage: mock(async () => ({
           signature: `ed25519:${base58Signature}`,
           publicKey: "ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T",
           accountId: "test.near",
@@ -187,7 +187,7 @@ describe("sign", () => {
       const base58Signature = base58.encode(rawSignature);
       
       const mockWallet: WalletInterface = {
-        signMessage: spyOn(async () => ({
+        signMessage: mock(async () => ({
           signature: `ed25519:${base58Signature}`,
           publicKey: "ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T",
           accountId: "test.near",
@@ -212,7 +212,7 @@ describe("sign", () => {
       const base58Signature = base58.encode(rawSignature);
       
       const mockWallet: WalletInterface = {
-        signMessage: spyOn(async () => ({
+        signMessage: mock(async () => ({
           signature: `ed25519:${base58Signature}`,
           publicKey: "ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T",
           accountId: "test.near",
@@ -235,7 +235,7 @@ describe("sign", () => {
       const base58Signature = base58.encode(rawSignature);
       
       const mockWallet: WalletInterface = {
-        signMessage: spyOn(async () => ({
+        signMessage: mock(async () => ({
           signature: `ed25519:${base58Signature}`,
           publicKey: "ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T",
           accountId: "test.near",

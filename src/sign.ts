@@ -70,13 +70,17 @@ async function signWithWallet(
   });
 
   const sigParts = walletResult.signature.split(":");
-  if (sigParts.length !== 2 || sigParts[0].toLowerCase() !== "ed25519") {
+  if (sigParts.length !== 2 || sigParts[0]?.toLowerCase() !== "ed25519") {
     throw new Error(
       `Unsupported signature format from wallet: ${walletResult.signature}. Expected "ed25519:<base58_signature>"`,
     );
   }
 
-  const rawSignatureBytes = base58.decode(sigParts[1]);
+  const signaturePart = sigParts[1];
+  if (!signaturePart) {
+    throw new Error(`Invalid signature format: ${walletResult.signature}`);
+  }
+  const rawSignatureBytes = base58.decode(signaturePart);
   const signature = base64.encode(rawSignatureBytes);
 
   const authData: NearAuthData = {

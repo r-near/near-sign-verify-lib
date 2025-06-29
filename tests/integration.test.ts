@@ -172,7 +172,7 @@ describe("integration tests", () => {
       // These would be passed to verify() as custom validators
       expect(isValidRecipient(parsed.recipient)).toBe(true);
       expect(isValidMessage(parsed.message)).toBe(true);
-      expect(isValidState(parsed.state)).toBe(true);
+      expect(isValidState(parsed.state || undefined)).toBe(true);
     });
   });
 

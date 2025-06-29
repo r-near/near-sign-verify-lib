@@ -9,11 +9,11 @@ import {
 import type { SignedPayload } from "../src/types.ts";
 
 // Mock fetch globally
-global.fetch = spyOn(global, "fetch");
+const fetchMock = spyOn(global, "fetch") as any;
 
 describe("crypto utilities", () => {
   afterEach(() => {
-    (global.fetch as any).mockClear();
+    fetchMock.mockClear();
   });
 
   describe("createNEP413Payload", () => {
@@ -120,8 +120,8 @@ describe("crypto utilities", () => {
       const mockResponse = {
         ok: true,
         json: async () => ({ account_ids: ["test.testnet"] }),
-      };
-      (global.fetch as any).mockResolvedValueOnce(mockResponse);
+      } as any;
+      fetchMock.mockResolvedValueOnce(mockResponse);
 
       await expect(
         verifyPublicKeyOwner("test.testnet", "ed25519:somekey", true)
@@ -136,8 +136,8 @@ describe("crypto utilities", () => {
       const mockResponse = {
         ok: true,
         json: async () => ({ account_ids: ["test.near"] }),
-      };
-      (global.fetch as any).mockResolvedValueOnce(mockResponse);
+      } as any;
+      fetchMock.mockResolvedValueOnce(mockResponse);
 
       await verifyPublicKeyOwner("test.near", "ed25519:somekey", true);
 
@@ -150,8 +150,8 @@ describe("crypto utilities", () => {
       const mockResponse = {
         ok: true,
         json: async () => ({ account_ids: ["test.testnet"] }),
-      };
-      (global.fetch as any).mockResolvedValueOnce(mockResponse);
+      } as any;
+      fetchMock.mockResolvedValueOnce(mockResponse);
 
       await verifyPublicKeyOwner("test.testnet", "ed25519:somekey", false);
 
@@ -164,8 +164,8 @@ describe("crypto utilities", () => {
       const mockResponse = {
         ok: false,
         status: 500,
-      };
-      (global.fetch as any).mockResolvedValueOnce(mockResponse);
+      } as any;
+      fetchMock.mockResolvedValueOnce(mockResponse);
 
       await expect(
         verifyPublicKeyOwner("test.testnet", "ed25519:somekey", true)
@@ -176,8 +176,8 @@ describe("crypto utilities", () => {
       const mockResponse = {
         ok: true,
         json: async () => ({ account_ids: ["other.testnet"] }),
-      };
-      (global.fetch as any).mockResolvedValueOnce(mockResponse);
+      } as any;
+      fetchMock.mockResolvedValueOnce(mockResponse);
 
       await expect(
         verifyPublicKeyOwner("test.testnet", "ed25519:somekey", true)
@@ -188,8 +188,8 @@ describe("crypto utilities", () => {
       const mockResponse = {
         ok: true,
         json: async () => ({ unexpected: "format" }),
-      };
-      (global.fetch as any).mockResolvedValueOnce(mockResponse);
+      } as any;
+      fetchMock.mockResolvedValueOnce(mockResponse);
 
       await expect(
         verifyPublicKeyOwner("test.testnet", "ed25519:somekey", true)
@@ -210,8 +210,8 @@ describe("crypto utilities", () => {
         json: async () => {
           throw new Error("Invalid JSON");
         },
-      };
-      (global.fetch as any).mockResolvedValueOnce(mockResponse);
+      } as any;
+      fetchMock.mockResolvedValueOnce(mockResponse);
 
       await expect(
         verifyPublicKeyOwner("test.testnet", "ed25519:somekey", true)
