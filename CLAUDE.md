@@ -46,8 +46,15 @@ The test suite uses Bun's built-in test runner with files in the `tests/` direct
 - Integration tests covering end-to-end workflows
 - Mock wallet implementation for testing
 
+## Git Workflow
+
+- **ALWAYS commit your work**: Use `git commit` frequently to save progress
+- **Use semantic commits**: Follow conventional commit format (feat:, fix:, docs:, etc.)
+- **Commit early and often**: Save work at logical checkpoints throughout development
+
 ## External Dependencies
 
 - Verifies public key ownership against FastNear API (mainnet: `api.fastnear.com`, testnet: `test.api.fastnear.com`)
 - Automatically detects testnet accounts by `.testnet` suffix
 - Supports both full access keys and function call keys based on `requireFullAccessKey` option
+- Integration tests use `@near-js/account` for wallet functionality instead of FastNEAR
