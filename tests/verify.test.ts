@@ -9,7 +9,16 @@ import type { NearAuthData } from "../src/types.ts";
 const fetchMock = spyOn(global, "fetch") as any;
 
 describe("verify", () => {
-  const testNonce = new Uint8Array(32);
+  // Create a valid test nonce with proper timestamp format
+  const createTestNonce = () => {
+    const timestamp = Date.now().toString();
+    const nonce = new Uint8Array(32);
+    const timestampBytes = new TextEncoder().encode(timestamp.padStart(16, "0"));
+    nonce.set(timestampBytes.slice(0, 16));
+    nonce.set(new Uint8Array(16).fill(1), 16); // Fill with 1s for consistency
+    return nonce;
+  };
+  const testNonce = createTestNonce();
 
   const baseAuthData: NearAuthData = {
     accountId: "testuser.testnet",
@@ -138,7 +147,7 @@ describe("verify", () => {
         verify(authTokenString, {
           recipient: "different-recipient.near",
         })
-      ).rejects.toThrow("Recipient mismatch: expected 'different-recipient.near'");
+      ).rejects.toThrow("Recipient mismatch: expected 'different-recipient.near', but recipient is 'recipient.near'.");
     });
 
     it("should validate message match", async () => {
@@ -165,7 +174,7 @@ describe("verify", () => {
         verify(authTokenString, {
           message: "different message",
         })
-      ).rejects.toThrow("Message mismatch: expected 'different message'");
+      ).rejects.toThrow("Message mismatch: expected 'different message', got 'test message'.");
     });
 
     it("should validate state match", async () => {
@@ -192,7 +201,7 @@ describe("verify", () => {
         verify(authTokenString, {
           state: "different-state",
         })
-      ).rejects.toThrow("State mismatch: expected 'different-state'");
+      ).rejects.toThrow("State mismatch: expected 'different-state', got 'test-state-123'.");
     });
 
     it("should handle null state correctly", async () => {

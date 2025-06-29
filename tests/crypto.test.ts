@@ -125,7 +125,7 @@ describe("crypto utilities", () => {
 
       await expect(
         verifyPublicKeyOwner("test.testnet", "ed25519:somekey", true)
-      ).resolves.not.toThrow();
+      ).resolves.toBeUndefined();
 
       expect(global.fetch).toHaveBeenCalledWith(
         "https://test.api.fastnear.com/v0/public_key/ed25519:somekey"

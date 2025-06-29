@@ -149,7 +149,7 @@ describe("sign", () => {
           accountId: "test.near",
           recipient: "recipient.near",
         })
-      ).rejects.toThrow("Invalid KeyPair format: missing ed25519 prefix");
+      ).rejects.toThrow("Invalid signer: must be KeyPair or a wallet object with a signMessage method");
     });
 
     it("should throw error for malformed key string", async () => {
