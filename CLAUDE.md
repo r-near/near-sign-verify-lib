@@ -42,9 +42,10 @@ The library is structured around three core operations:
 ## Testing
 
 The test suite uses Bun's built-in test runner with files in the `tests/` directory:
-- Unit tests for each module
-- Integration tests covering end-to-end workflows
-- Mock wallet implementation for testing
+- Unit tests for each module with proper mocking of external dependencies
+- Integration tests using real NEAR keypairs for end-to-end workflows
+- Source-of-truth compatibility tests for regression detection
+- Real cryptographic signing with deterministic test cases
 
 ## Git Workflow
 

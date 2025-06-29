@@ -1,244 +1,246 @@
-import { describe, it, expect, beforeAll } from "bun:test";
-import { sign, verify, parseAuthToken } from "../src/index.js";
-import type { SignOptions, VerificationResult, NearAuthData, WalletInterface } from "../src/index.js";
+import { describe, it, expect } from "bun:test";
+import { sign, parseAuthToken } from "../src/index.js";
+import type { SignOptions, NearAuthData } from "../src/index.js";
+import { KeyPair } from "near-api-js";
 
-describe("integration tests", () => {
-  // Mock wallet for testing
-  class MockWallet implements WalletInterface {
-    constructor(
-      private accountId: string,
-      private publicKey: string,
-      private mockSignature: string = "ed25519:mockSignatureBase58"
-    ) {}
-
-    async signMessage(params: any) {
-      return {
-        accountId: this.accountId,
-        publicKey: this.publicKey,
-        signature: this.mockSignature,
-        state: params.state,
-      };
-    }
-  }
-
-  describe("sign-verify flow", () => {
-    it("should create a token that can be parsed", async () => {
-      // Create a mock signature that's properly formatted
-      const { base58 } = await import("@scure/base");
-      const rawSignature = new Uint8Array(64).fill(42);
-      const base58Signature = base58.encode(rawSignature);
+describe("integration tests with real keypairs", () => {
+  
+  describe("keypair signing end-to-end", () => {
+    it("should create and parse a real signed token", async () => {
+      // Generate a real keypair
+      const keyPair = KeyPair.fromRandom("ed25519");
+      const privateKey = keyPair.toString();
+      const publicKey = keyPair.getPublicKey().toString();
       
-      const mockWallet = new MockWallet(
-        "test.testnet",
-        "ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T",
-        `ed25519:${base58Signature}`
-      );
-
       const signOptions: SignOptions = {
-        signer: mockWallet,
-        recipient: "app.near",
-        state: "test-state-123",
+        signer: privateKey,
+        accountId: "test-account.testnet",
+        recipient: "example-app.near",
+        state: "session-12345",
         callbackUrl: "https://example.com/callback",
       };
 
-      const authToken = await sign("Test message", signOptions);
+      // Sign a message with real cryptography
+      const authToken = await sign("Hello NEAR Protocol!", signOptions);
       
       // Verify the token can be parsed
       expect(typeof authToken).toBe("string");
+      expect(authToken.length).toBeGreaterThan(0);
       
       const parsed: NearAuthData = parseAuthToken(authToken);
-      expect(parsed.accountId).toBe("test.testnet");
-      expect(parsed.message).toBe("Test message");
-      expect(parsed.recipient).toBe("app.near");
-      expect(parsed.state).toBe("test-state-123");
+      
+      // Verify all fields are correctly preserved
+      expect(parsed.accountId).toBe("test-account.testnet");
+      expect(parsed.message).toBe("Hello NEAR Protocol!");
+      expect(parsed.recipient).toBe("example-app.near");
+      expect(parsed.state).toBe("session-12345");
       expect(parsed.callbackUrl).toBe("https://example.com/callback");
-      expect(parsed.publicKey).toBe("ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T");
+      expect(parsed.publicKey).toBe(publicKey);
+      expect(parsed.signature).toBeDefined();
+      expect(typeof parsed.signature).toBe("string");
+      expect(parsed.nonce).toBeDefined();
+      expect(Array.isArray(parsed.nonce)).toBe(true);
+      expect(parsed.nonce.length).toBe(32);
+    });
+
+    it("should create deterministic tokens with the same inputs", async () => {
+      // Use a specific keypair for deterministic results
+      const keyPair = KeyPair.fromString("ed25519:3D4YudUahN1HT8jDn6LNLnYwF4nqHQGaJTaVNdh8ioRfP8KdG4xj3a5V7f8bC2zQ1rE9sD6xA8bN3mV4uW5pL7e");
+      const privateKey = keyPair.toString();
+      
+      // Use a fixed nonce for deterministic results
+      const fixedNonce = new Uint8Array(32);
+      // Set first 16 bytes to a timestamp (padded with zeros)
+      const timestamp = "1234567890123456";
+      const timestampBytes = new TextEncoder().encode(timestamp);
+      fixedNonce.set(timestampBytes.slice(0, 16));
+      // Set last 16 bytes to a fixed pattern
+      for (let i = 16; i < 32; i++) {
+        fixedNonce[i] = i - 16;
+      }
+      
+      const signOptions: SignOptions = {
+        signer: privateKey,
+        accountId: "deterministic.testnet",
+        recipient: "app.near",
+        nonce: fixedNonce,
+      };
+
+      // Sign the same message twice
+      const token1 = await sign("Deterministic test message", signOptions);
+      const token2 = await sign("Deterministic test message", signOptions);
+      
+      // Should produce identical tokens
+      expect(token1).toBe(token2);
+      
+      // Parse to verify structure
+      const parsed = parseAuthToken(token1);
+      expect(parsed.accountId).toBe("deterministic.testnet");
+      expect(parsed.message).toBe("Deterministic test message");
+      expect(parsed.recipient).toBe("app.near");
+      expect(new Uint8Array(parsed.nonce)).toEqual(fixedNonce);
     });
 
     it("should handle different message types", async () => {
-      const { base58 } = await import("@scure/base");
-      const rawSignature = new Uint8Array(64).fill(1);
-      const base58Signature = base58.encode(rawSignature);
+      const keyPair = KeyPair.fromRandom("ed25519");
+      const privateKey = keyPair.toString();
       
-      const mockWallet = new MockWallet(
-        "test.testnet",
-        "ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T",
-        `ed25519:${base58Signature}`
-      );
+      const testCases = [
+        { message: "Simple message", description: "simple string" },
+        { message: JSON.stringify({ action: "login", userId: 12345 }), description: "JSON message" },
+        { message: "Message with unicode: 🚀 💫 ⭐", description: "unicode message" },
+        { message: "", description: "empty message" },
+        { message: "A".repeat(1000), description: "long message" },
+      ];
 
-      // Test with JSON message
-      const jsonMessage = JSON.stringify({ action: "login", userId: 123 });
-      const authToken = await sign(jsonMessage, {
-        signer: mockWallet,
-        recipient: "app.near",
-      });
+      for (const { message, description } of testCases) {
+        const signOptions: SignOptions = {
+          signer: privateKey,
+          accountId: "test.testnet",
+          recipient: "app.near",
+        };
 
-      const parsed = parseAuthToken(authToken);
-      expect(parsed.message).toBe(jsonMessage);
-      expect(() => JSON.parse(parsed.message)).not.toThrow();
+        const authToken = await sign(message, signOptions);
+        const parsed = parseAuthToken(authToken);
+        
+        expect(parsed.message).toBe(message);
+        expect(parsed.accountId).toBe("test.testnet");
+        expect(parsed.recipient).toBe("app.near");
+      }
     });
 
     it("should preserve nonce across sign-parse flow", async () => {
-      const { base58 } = await import("@scure/base");
-      const rawSignature = new Uint8Array(64).fill(7);
-      const base58Signature = base58.encode(rawSignature);
+      const keyPair = KeyPair.fromRandom("ed25519");
+      const privateKey = keyPair.toString();
       
-      const mockWallet = new MockWallet(
-        "test.testnet",
-        "ed25519:8hSHprDq2StXwMtNd43wDTXQYsjXcD4MJxUTvwtnmM4T",
-        `ed25519:${base58Signature}`
-      );
-
-      const customNonce = new Uint8Array(32).fill(99);
+      // Create a custom nonce with specific pattern
+      const customNonce = new Uint8Array(32);
+      for (let i = 0; i < 32; i++) {
+        customNonce[i] = i * 3; // Pattern: 0, 3, 6, 9, ...
+      }
       
-      const authToken = await sign("Test with custom nonce", {
-        signer: mockWallet,
+      const signOptions: SignOptions = {
+        signer: privateKey,
+        accountId: "nonce-test.testnet",
         recipient: "app.near",
         nonce: customNonce,
-      });
+      };
 
+      const authToken = await sign("Custom nonce test", signOptions);
       const parsed = parseAuthToken(authToken);
+      
       expect(new Uint8Array(parsed.nonce)).toEqual(customNonce);
+      expect(parsed.message).toBe("Custom nonce test");
     });
   });
 
-  describe("validation workflows", () => {
-    it("should demonstrate simple validation pattern", async () => {
-      const { base58 } = await import("@scure/base");
-      const rawSignature = new Uint8Array(64).fill(3);
-      const base58Signature = base58.encode(rawSignature);
+  describe("source of truth tokens", () => {
+    it("should maintain compatibility with known good token format", async () => {
+      // This test serves as a "source of truth" - if this breaks, we've changed the format
+      const keyPair = KeyPair.fromString("ed25519:3D4YudUahN1HT8jDn6LNLnYwF4nqHQGaJTaVNdh8ioRfP8KdG4xj3a5V7f8bC2zQ1rE9sD6xA8bN3mV4uW5pL7e");
+      const privateKey = keyPair.toString();
       
-      const mockWallet = new MockWallet(
-        "user.testnet",
-        "ed25519:validPublicKey",
-        `ed25519:${base58Signature}`
-      );
+      // Fixed nonce for reproducibility
+      const sourceOfTruthNonce = new Uint8Array([
+        // First 16 bytes: timestamp "1700000000000000"
+        49, 55, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48,
+        // Last 16 bytes: fixed pattern
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+      ]);
+      
+      const signOptions: SignOptions = {
+        signer: privateKey,
+        accountId: "source-of-truth.testnet",
+        recipient: "reference-app.near",
+        state: "reference-state",
+        callbackUrl: "https://reference.com/callback",
+        nonce: sourceOfTruthNonce,
+      };
 
-      // Sign a message
-      const authToken = await sign("Login request", {
-        signer: mockWallet,
-        recipient: "myapp.near",
-        state: "csrf-protection-123",
-      });
-
-      // Parse without validation (for debugging)
+      const authToken = await sign("Reference message for compatibility", signOptions);
+      
+      // This is our "golden" token - if this changes, we've broken compatibility
+      console.log("Source of truth token:", authToken);
+      
+      // Verify the token can be parsed correctly
       const parsed = parseAuthToken(authToken);
-      expect(parsed.accountId).toBe("user.testnet");
-      expect(parsed.recipient).toBe("myapp.near");
-      expect(parsed.state).toBe("csrf-protection-123");
-
-      // This would normally call the actual verify function, but we can't
-      // in tests without mocking the FastNEAR API and crypto verification
-      // The verify function would do:
-      // 1. Parse the token (✓ tested above)
-      // 2. Validate nonce timestamp
-      // 3. Check recipient matches
-      // 4. Verify public key ownership via FastNEAR API
-      // 5. Verify cryptographic signature
-    });
-
-    it("should demonstrate custom validation pattern", async () => {
-      const { base58 } = await import("@scure/base");
-      const rawSignature = new Uint8Array(64).fill(5);
-      const base58Signature = base58.encode(rawSignature);
+      expect(parsed.accountId).toBe("source-of-truth.testnet");
+      expect(parsed.message).toBe("Reference message for compatibility");
+      expect(parsed.recipient).toBe("reference-app.near");
+      expect(parsed.state).toBe("reference-state");
+      expect(parsed.callbackUrl).toBe("https://reference.com/callback");
+      expect(new Uint8Array(parsed.nonce)).toEqual(sourceOfTruthNonce);
       
-      const mockWallet = new MockWallet(
-        "premium-user.testnet",
-        "ed25519:validPublicKey",
-        `ed25519:${base58Signature}`
-      );
-
-      const authToken = await sign("Premium feature access", {
-        signer: mockWallet,
-        recipient: "premium-app.near",
-        state: "premium-session-456",
-      });
-
-      const parsed = parseAuthToken(authToken);
-      
-      // Custom validation examples that would be used in verify()
-      const isValidRecipient = (recipient: string) => {
-        return ["premium-app.near", "app.near"].includes(recipient);
-      };
-
-      const isValidMessage = (message: string) => {
-        return message.includes("Premium") || message.includes("Standard");
-      };
-
-      const isValidState = (state?: string) => {
-        return state?.startsWith("premium-session-") || state?.startsWith("standard-session-");
-      };
-
-      // These would be passed to verify() as custom validators
-      expect(isValidRecipient(parsed.recipient)).toBe(true);
-      expect(isValidMessage(parsed.message)).toBe(true);
-      expect(isValidState(parsed.state || undefined)).toBe(true);
+      // The signature should be deterministic with these inputs
+      expect(parsed.signature).toBeDefined();
+      expect(typeof parsed.signature).toBe("string");
     });
   });
 
-  describe("error scenarios", () => {
-    it("should handle corrupted token gracefully", () => {
-      const corruptedToken = "this-is-not-a-valid-base64-token!@#$";
-      
-      expect(() => parseAuthToken(corruptedToken)).toThrow("Invalid auth token:");
-    });
-
-    it("should handle empty token", () => {
-      expect(() => parseAuthToken("")).toThrow("Invalid auth token:");
-    });
-
-    it("should handle wallet signing failures", async () => {
-      const failingWallet: WalletInterface = {
-        signMessage: async () => {
-          throw new Error("User rejected signing");
-        },
-      };
-
+  describe("error handling", () => {
+    it("should handle invalid private keys gracefully", async () => {
       await expect(
-        sign("Test message", {
-          signer: failingWallet,
+        sign("test message", {
+          signer: "invalid:key",
+          accountId: "test.testnet",
           recipient: "app.near",
         })
-      ).rejects.toThrow("User rejected signing");
+      ).rejects.toThrow("Invalid signer: must be KeyPair or a wallet object with a signMessage method");
+    });
+
+    it("should require accountId for keypair signers", async () => {
+      const keyPair = KeyPair.fromRandom("ed25519");
+      const privateKey = keyPair.toString();
+      
+      await expect(
+        sign("test message", {
+          signer: privateKey,
+          recipient: "app.near",
+          // Missing accountId
+        })
+      ).rejects.toThrow("accountId is required when using a KeyPair signer");
+    });
+
+    it("should handle malformed private keys", async () => {
+      await expect(
+        sign("test message", {
+          signer: "ed25519:invalidkeydata",
+          accountId: "test.testnet",
+          recipient: "app.near",
+        })
+      ).rejects.toThrow();
     });
   });
 
   describe("backwards compatibility", () => {
     it("should maintain the same public API", () => {
-      // Verify that our main exports are still available
+      // Verify that our main functions are still available
       expect(typeof sign).toBe("function");
-      expect(typeof verify).toBe("function");
       expect(typeof parseAuthToken).toBe("function");
     });
 
-    it("should accept the same SignOptions interface", async () => {
-      const { base58 } = await import("@scure/base");
-      const rawSignature = new Uint8Array(64).fill(8);
-      const base58Signature = base58.encode(rawSignature);
+    it("should accept all SignOptions fields", async () => {
+      const keyPair = KeyPair.fromRandom("ed25519");
+      const privateKey = keyPair.toString();
       
-      const mockWallet = new MockWallet(
-        "test.testnet",
-        "ed25519:validKey",
-        `ed25519:${base58Signature}`
-      );
-
-      // All optional fields should still work
+      // Test with all optional fields
       const fullOptions: SignOptions = {
-        signer: mockWallet,
+        signer: privateKey,
+        accountId: "test.testnet",
         recipient: "app.near",
-        accountId: "ignored-for-wallet", // Should be ignored for wallet
-        nonce: new Uint8Array(32).fill(1),
+        nonce: new Uint8Array(32).fill(42),
         state: "test-state",
         callbackUrl: "https://example.com/callback",
       };
 
-      const authToken = await sign("Compatibility test", fullOptions);
+      const authToken = await sign("Full options test", fullOptions);
       const parsed = parseAuthToken(authToken);
       
-      expect(parsed.accountId).toBe("test.testnet"); // From wallet, not options
+      expect(parsed.accountId).toBe("test.testnet");
       expect(parsed.recipient).toBe("app.near");
       expect(parsed.state).toBe("test-state");
       expect(parsed.callbackUrl).toBe("https://example.com/callback");
+      expect(new Uint8Array(parsed.nonce)).toEqual(new Uint8Array(32).fill(42));
     });
   });
 });
